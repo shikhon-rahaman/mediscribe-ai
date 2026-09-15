@@ -11,21 +11,22 @@ Doctors spend **2 hours documenting** for every **1 hour spent with patients**. 
 Three AI agents that listen to consultations and generate complete SOAP notes in under 30 seconds:
 
 1. **Transcription Agent** — Converts audio to text using Groq Whisper Large v3
-2. **Medical NLP Agent** — Extracts symptoms, medications, allergies, vitals, and red flags using Llama 3.3 70B
+2. **Medical NLP Agent** — Extracts symptoms, medications, allergies, vitals, and red flags using GPT-OSS 120B
 3. **SOAP Generator Agent** — Produces a structured, clinically accurate SOAP note with safety flags
 
 ## Architecture
 
 ```
-[Microphone] → [Audio Blob] → Edge Function: transcribe (Groq Whisper)
+[Microphone] → [Audio Blob] → Next.js API Route: /api/transcribe (Groq Whisper)
                                     ↓
                               [Transcript Text]
                                     ↓
-                         Edge Function: analyze (Groq Llama 3.3 70B)
+                         Next.js API Route: /api/analyze (Groq GPT-OSS 120B)
+                              ├── Speaker Labeler → DOCTOR/PATIENT transcript
                               ├── NLP Agent → Medical Entities
                               └── SOAP Agent → SOAP Note + Safety Flags
                                     ↓
-                         Edge Function: save-note → Supabase DB
+                         Saved to the browser's localStorage
 ```
 
 ### Agent 1 — Transcription Agent (Groq Whisper Large v3)
@@ -34,12 +35,12 @@ Three AI agents that listen to consultations and generate complete SOAP notes in
 - Sends to Groq Whisper API for transcription
 - Returns clean transcript text
 
-### Agent 2 — Medical NLP Agent (Llama 3.3 70B Versatile)
+### Agent 2 — Medical NLP Agent (GPT-OSS 120B)
 - Accepts transcript text (max 10,000 characters)
 - Extracts structured medical entities: symptoms, medications, allergies, duration, vital signs, diagnosis, red flags
 - Returns validated JSON
 
-### Agent 3 — SOAP Generator + Safety Agent (Llama 3.3 70B Versatile)
+### Agent 3 — SOAP Generator + Safety Agent (GPT-OSS 120B)
 - Accepts transcript + extracted entities
 - Generates a complete SOAP note (Subjective, Objective, Assessment, Plan)
 - Extracts safety flags separately for prominent display
@@ -49,9 +50,9 @@ Three AI agents that listen to consultations and generate complete SOAP notes in
 | Layer | Technology |
 |-------|-----------|
 | Frontend | Next.js 14 (App Router), Tailwind CSS, shadcn/ui |
-| Backend | Supabase Edge Functions (Deno/TypeScript) |
-| Database | Supabase (PostgreSQL with RLS) |
-| AI | Groq API (llama-3.3-70b-versatile + whisper-large-v3) |
+| Backend | Next.js API Routes (Node.js runtime) |
+| Storage | Browser localStorage (per-device clinical notes history) |
+| AI | Groq API (openai/gpt-oss-120b + whisper-large-v3) |
 | Animations | Framer Motion |
 
 ## Local Setup
@@ -65,7 +66,7 @@ Three AI agents that listen to consultations and generate complete SOAP notes in
    ```bash
    cp .env.example .env.local
    ```
-   Fill in your Groq API key and Supabase credentials.
+   Fill in your Groq API key.
 
 3. **Run the development server:**
    ```bash
@@ -80,29 +81,36 @@ See `.env.example` for all required variables. **Never commit real keys to GitHu
 
 | Variable | Description |
 |----------|-------------|
-| `GROQ_API_KEY` | Groq API key for Whisper + Llama models |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key (frontend-safe) |
+| `GROQ_API_KEY` | Groq API key for Whisper + GPT-OSS models (server-side only, never exposed to the browser) |
 
 ## Security
 
-- **No hardcoded secrets** — all API keys in environment variables only
-- **Rate limiting** on all backend endpoints (transcribe: 10/min, analyze: 10/min, save: 20/min, notes: 30/min)
+- **No hardcoded secrets** — API key in environment variables only
 - **File validation** — type and size checks on audio uploads
 - **Input sanitization** — HTML stripping and length validation on all inputs
-- **Row Level Security** enabled on Supabase tables
 - **No audio stored** — processed in memory only, deleted immediately after transcription
 - **Generic error messages** — internal errors never exposed to frontend
-- **Security headers** — X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy
-- **CORS** — configured on all edge function responses
+- **Client-side note storage** — clinical notes are saved to the browser's localStorage and never leave the device
 
 ## Deploy
 
 | Component | Platform |
 |-----------|----------|
-| Frontend | Vercel |
-| Backend (Edge Functions) | Supabase |
-| Database | Supabase |
+| Frontend + API Routes | Vercel |
+| Storage | Browser localStorage (no external database) |
+
+## Known Limitations
+
+- Clinical notes history is stored per-browser (localStorage), not synced across devices or users. A future version could swap this for a proper database (e.g. Postgres) for multi-user persistence.
+
+## Roadmap
+
+The current build is deliberately scoped for a fast, working demo. Planned next steps toward production:
+
+- *Persistent, multi-user storage* — replace localStorage with a proper Postgres database (e.g. via Neon or Render's managed Postgres), with a dedicated backend service hosted on Render/Railway to handle multi-user sync.
+- *Authentication* — tie clinical notes to a provider account instead of a single browser/device.
+- *Compliance path* — this is currently a demo, not HIPAA-compliant. A production version would need encryption at rest, audit logging, and a BAA-eligible hosting provider before handling real patient data.
+- *Structured, validated model output* — add schema validation (e.g. Zod) with retry logic to guard against format drift, rather than trusting raw model output.
 
 ## Impact
 
