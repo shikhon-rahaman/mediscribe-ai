@@ -1,0 +1,13 @@
+project_id = "mediscribe-ai"
+
+[functions.transcribe]
+verify_jwt = false
+
+[functions.analyze]
+verify_jwt = false
+
+[functions.save-note]
+verify_jwt = false
+
+[functions.notes]
+verify_jwt = false
