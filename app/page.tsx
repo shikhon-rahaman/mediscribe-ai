@@ -146,10 +146,36 @@ export default function HomePage() {
           handleStopRecording();
         }
       }, 1000);
-    } catch {
-      setRecordError("Microphone access denied. Please allow microphone permission.");
-      setIsRecording(false);
-    }
+    } catch (error: unknown) {
+  console.error("Microphone access error:", error);
+
+  setIsRecording(false);
+
+  if (error instanceof DOMException && error.name === "NotAllowedError") {
+    setRecordError(
+      "Microphone is blocked. Allow microphone access in your browser's site settings, then tap the microphone again."
+    );
+    return;
+  }
+
+  if (error instanceof DOMException && error.name === "NotFoundError") {
+    setRecordError(
+      "No microphone was found. Please connect or enable a microphone and try again."
+    );
+    return;
+  }
+
+  if (error instanceof DOMException && error.name === "NotReadableError") {
+    setRecordError(
+      "The microphone is currently being used by another application. Close it and try again."
+    );
+    return;
+  }
+
+  setRecordError(
+    "Unable to access the microphone. Please check your browser permissions and try again."
+  );
+}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cleanupStream, updateStep]);
 
