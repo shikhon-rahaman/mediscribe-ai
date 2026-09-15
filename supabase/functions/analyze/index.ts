@@ -137,7 +137,7 @@ Deno.serve(async (req: Request) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
+          model: "openai/gpt-oss-120b",
           messages: [
             { role: "system", content: NLP_PROMPT },
             { role: "user", content: cleanTranscript },
@@ -187,7 +187,7 @@ ${JSON.stringify(entities, null, 2)}`;
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
+          model: "openai/gpt-oss-120b",
           messages: [
             { role: "system", content: SOAP_PROMPT },
             { role: "user", content: soapInput },
